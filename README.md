@@ -1,4 +1,9 @@
-# TextualGraph
+# Note
+
+There is a large file paired_data.json in .gitattributes that needs to be downloaded
+
+
+# Select the code to run based on the size of the GPU memory
 
 For generating embeddings with batch_size=16, num_epochs=15:
 
