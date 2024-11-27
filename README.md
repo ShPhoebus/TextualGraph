@@ -13,7 +13,9 @@ with batch_size=256, num_epochs=15:
     python emb_train_256.py
 
 
-# Environment
+# Environment(from original project)
+
+Python=3.8.10 
 
 conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
 
