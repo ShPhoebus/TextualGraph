@@ -1,8 +1,8 @@
 # Note
 
-There is a large file paired_data.json in .gitattributes that needs to be downloaded
+1. The paired_data.json file ( https://huggingface.co/datasets/KurisuTL/paired_data ) should be downloaded and saved in the root directory.
 
-The final generated .pt embedding file is in the embeddings folder
+2. The final code will generate .pt embedding files in the "embeddings" folder
 
 
 # Select the code to run based on the size of the GPU memory
