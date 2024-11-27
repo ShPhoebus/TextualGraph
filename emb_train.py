@@ -379,7 +379,7 @@ def main():
     model = train_model(
         train_dataset=dataset,
         batch_size=16,
-        num_epochs=3
+        num_epochs=15
     )
 
     embeddings1, embeddings2 = generate_embeddings(
