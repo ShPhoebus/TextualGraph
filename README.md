@@ -2,22 +2,17 @@
 
 1. The paired_data.json file ( https://huggingface.co/datasets/KurisuTL/paired_data ) should be downloaded and saved in the root directory.
 
-2. The final code will generate .pt embedding files in the "embeddings" folder
+2. After training, the program will generate .pt embedding files in the "embeddings" folder
 
 
-# Select the code to run based on the size of the GPU memory
+# Training
 
-For generating embeddings with batch_size=16, num_epochs=15:
+Here are two parameters to set batch_size and epoch to train LM embedding.
 
-    python emb_train_16.py
+For example, for generating embeddings with batch_size=32, num_epochs=25:
 
-with batch_size=64, num_epochs=15:
+    python emb_train.py --batch_size 32 --num_epochs 25
 
-    python emb_train_64.py
-
-with batch_size=256, num_epochs=15:
-
-    python emb_train_256.py
 
 
 # Environment(from original project)
