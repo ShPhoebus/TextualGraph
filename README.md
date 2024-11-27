@@ -2,6 +2,8 @@
 
 There is a large file paired_data.json in .gitattributes that needs to be downloaded
 
+The final generated .pt embedding file is in the embeddings folder
+
 
 # Select the code to run based on the size of the GPU memory
 
