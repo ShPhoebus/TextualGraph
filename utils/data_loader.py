@@ -14,7 +14,13 @@ valid_user_set = defaultdict(list)
 
 
 def read_cf_amazon(file_name):
-    return np.loadtxt(file_name, dtype=np.int32)  # [u_id, i_id]
+    """读取交互数据，保持原始ID
+    Returns:
+        np.array: 原始交互数据 [u_id, i_id]
+    """
+    # 直接读取原始数据，不进行ID映射
+    raw_data = np.loadtxt(file_name, dtype=np.int32)  # [u_id, i_id]
+    return raw_data
 
 
 def read_cf_yelp2018(file_name):
@@ -31,16 +37,21 @@ def read_cf_yelp2018(file_name):
 
 
 def load_pretrained_embeddings(pretrain_path):
-    """加载预训练嵌入"""
+    """加载预训练嵌入，保持原始ID映射
+    Returns:
+        drug_embeddings: 药物嵌入
+        target_embeddings: 靶点嵌入
+        drug_id_to_idx: 原始ID到索引的映射
+        target_id_to_idx: 原始ID到索引的映射
+    """
     try:
         data = torch.load(pretrain_path)
-        # 加载drug和target的嵌入及其ID映射
         drug_embeddings = torch.FloatTensor(data['drug']['embeddings'])
         target_embeddings = torch.FloatTensor(data['target']['embeddings'])
         drug_ids = data['drug']['ids']
         target_ids = data['target']['ids']
         
-        print("Detailed embedding information:")
+        print("pt-------------Detailed embedding information:")
         print(f"Number of unique drug IDs: {len(set(drug_ids))}")
         print(f"Number of unique target IDs: {len(set(target_ids))}")
         print(f"Drug embeddings shape: {drug_embeddings.shape}")
@@ -48,28 +59,15 @@ def load_pretrained_embeddings(pretrain_path):
         print(f"Sample drug IDs: {drug_ids[:5]}")
         print(f"Sample target IDs: {target_ids[:5]}")
         
-        # 创建ID到索引的映射字典
-        drug_id_to_idx = {id_: idx for idx, id_ in enumerate(drug_ids)}
-        target_id_to_idx = {id_: idx for idx, id_ in enumerate(target_ids)}
+        # 保持原始ID作为索引
+        drug_id_to_idx = {id_: id_ for id_ in drug_ids}
+        target_id_to_idx = {id_: id_ for id_ in target_ids}
         
-        print("\nDetailed mapping information:")
-        print("Drug ID to Index mapping (first 5 entries):")
-        first_5_drug_items = list(drug_id_to_idx.items())[:5]
-        for orig_id, mapped_idx in first_5_drug_items:
-            print(f"Original Drug ID: {orig_id} -> Index: {mapped_idx}")
-            
-        print("\nTarget ID to Index mapping (first 5 entries):")
-        first_5_target_items = list(target_id_to_idx.items())[:5]
-        for orig_id, mapped_idx in first_5_target_items:
-            print(f"Original Target ID: {orig_id} -> Index: {mapped_idx}")
-            
-        print("\nMapping Statistics:")
-        print(f"Number of drug mappings: {len(drug_id_to_idx)}")
-        print(f"Number of target mappings: {len(target_id_to_idx)}")
-        print(f"Drug ID range: {min(drug_ids)} - {max(drug_ids)}")
-        print(f"Target ID range: {min(target_ids)} - {max(target_ids)}")
-        print(f"Drug embeddings shape: {drug_embeddings.shape}")
-        print(f"Target embeddings shape: {target_embeddings.shape}")
+        print("\npt-------------Mapping Statistics:")
+        print(f"Drug ID range: 0 - {max(drug_ids)}")
+        print(f"Target ID range: 0 - {max(target_ids)}")
+        print(f"Number of drug embeddings: {len(drug_embeddings)}")
+        print(f"Number of target embeddings: {len(target_embeddings)}")
         
         return drug_embeddings, target_embeddings, drug_id_to_idx, target_id_to_idx
     except Exception as e:
@@ -100,7 +98,7 @@ def build_sparse_graph(train_cf, drug_id_to_idx=None, target_id_to_idx=None):
         norm_adj = d_mat_inv.dot(adj)
         return norm_adj.tocoo()
 
-    # 1. 构建用户-物品交互矩阵
+    # 1. 构建户-物品交互矩阵
     cf = train_cf.copy()
     cf[:, 1] = cf[:, 1] + n_users  # [0, n_items) -> [n_users, n_users+n_items) # 将item的id映射到[n_users, n_users+n_items)范围
     
@@ -131,7 +129,40 @@ def load_data(model_args):
     test_cf = read_cf_amazon(directory + 'test.txt')
     valid_cf = read_cf_amazon(directory + 'valid.txt')
     
-    # 加载预训练嵌入
+    # # 检查train_cf, test_cf, valid_cf的ID范围
+    # print("\nChecking ID ranges in datasets:")
+    # print(f"Train set - Drug ID range: [{train_cf[:, 0].min()}, {train_cf[:, 0].max()}], Target ID range: [{train_cf[:, 1].min()}, {train_cf[:, 1].max()}]")
+    # print(f"Test set - Drug ID range: [{test_cf[:, 0].min()}, {test_cf[:, 0].max()}], Target ID range: [{test_cf[:, 1].min()}, {test_cf[:, 1].max()}]")
+    # print(f"Valid set - Drug ID range: [{valid_cf[:, 0].min()}, {valid_cf[:, 0].max()}], Target ID range: [{valid_cf[:, 1].min()}, {valid_cf[:, 1].max()}]")
+    
+    # # 检查不重复的ID数量
+    # print("\nNumber of unique IDs:")
+    # print(f"Train set - Unique drugs: {len(set(train_cf[:, 0]))}, Unique targets: {len(set(train_cf[:, 1]))}")
+    # print(f"Test set - Unique drugs: {len(set(test_cf[:, 0]))}, Unique targets: {len(set(test_cf[:, 1]))}")
+    # print(f"Valid set - Unique drugs: {len(set(valid_cf[:, 0]))}, Unique targets: {len(set(valid_cf[:, 1]))}")
+    
+    # 这是打印：正确的映射，唯一ID，对应txt文件中的ID
+    # Checking ID ranges in datasets:
+    # Train set - Drug ID range: [0, 16579], Target ID range: [0, 4734]
+    # Test set - Drug ID range: [23, 13746], Target ID range: [8, 4688]
+    # Valid set - Drug ID range: [1, 14945], Target ID range: [0, 4725]
+    # Number of unique IDs:
+    # Train set - Unique drugs: 6673, Unique targets: 3890
+    # Test set - Unique drugs: 260, Unique targets: 845
+    # Valid set - Unique drugs: 2437, Unique targets: 1774
+    
+    # train_cf与txt中的ID范围一致，在txt中，drug的ID范围是0-16580，target的ID范围是0-4735！！
+    # print(f"train_cf: {train_cf}") 
+    # train_cf: [[  302   959]
+    # [ 4786  2719]
+    # [ 2959   303]
+    # ...
+    # [ 6754  3641]
+    # [  236   875]
+    # [12499  1669]]
+    
+    
+    # 加载预训练嵌入，注意load_pretrained_embeddings里面的映射只是按照pt文件中的ID来，也就是与txt中一致, 所以并没有新的映射，drug_id_to_idx中是：drug_id_to_idx: {302: 302, 4786: 4786, 2959: 2959, 10002: 10002, .....}
     pretrain_drug_emb, pretrain_target_emb = None, None
     drug_id_to_idx, target_id_to_idx = {}, {}
     if args.use_pretrain:
@@ -140,12 +171,25 @@ def load_data(model_args):
             load_pretrained_embeddings(args.pretrain_path)
         if pretrain_drug_emb is not None:
             print(f"Loaded pretrained embeddings with shapes: {pretrain_drug_emb.shape}, {pretrain_target_emb.shape}")
+    # 这里是映射表
+    # print(f"drug_id_to_idx: {drug_id_to_idx}")  
+    # drug_id_to_idx: {302: 302, 4786: 4786, 2959: 2959, 10002: 10002, .....}
     
+    
+    # (train_cf[:, 0].max() + 1) is 16580
+    # len(drug_id_to_idx) is 6673
+    # print("--------------------------------")
+    # print(train_cf[:, 0].max() + 1)
+    # print(len(drug_id_to_idx))
     # 统计用户和物品数量
-    n_users = max(train_cf[:, 0].max() + 1, len(drug_id_to_idx))
-    n_items = max(train_cf[:, 1].max() + 1, len(target_id_to_idx))
+    n_users = max(train_cf[:, 0].max() + 1, len(drug_id_to_idx))  # 应该是16580，保持完整的drug ID空间，也与txt一致
+    n_items = max(train_cf[:, 1].max() + 1, len(target_id_to_idx))  # 应该是4735，保持完整的target ID空间，也与txt一致
+    print(f"n_users: {n_users}")
+    print(f"n_items: {n_items}")
+    # n_users: 16580
+    # n_items: 4735
 
-    # 构建用户-物品集合
+    # 构建用户-物品集
     for u, i in train_cf:
         train_user_set[u].append(i)
     for u, i in test_cf:
