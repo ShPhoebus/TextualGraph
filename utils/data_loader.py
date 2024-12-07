@@ -14,10 +14,7 @@ valid_user_set = defaultdict(list)
 
 
 def read_cf_amazon(file_name):
-    """读取交互数据，保持原始ID
-    Returns:
-        np.array: 原始交互数据 [u_id, i_id]
-    """
+
     # 直接读取原始数据，不进行ID映射
     raw_data = np.loadtxt(file_name, dtype=np.int32)  # [u_id, i_id]
     return raw_data
@@ -37,13 +34,7 @@ def read_cf_yelp2018(file_name):
 
 
 def load_pretrained_embeddings(pretrain_path):
-    """加载预训练嵌入，保持原始ID映射
-    Returns:
-        drug_embeddings: 药物嵌入
-        target_embeddings: 靶点嵌入
-        drug_id_to_idx: 原始ID到索引的映射
-        target_id_to_idx: 原始ID到索引的映射
-    """
+
     try:
         data = torch.load(pretrain_path)
         drug_embeddings = torch.FloatTensor(data['drug']['embeddings'])
