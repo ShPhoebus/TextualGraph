@@ -5,6 +5,8 @@ Created on October 1, 2020
 '''
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
 
 
 class GraphConv(nn.Module):
@@ -103,55 +105,94 @@ class LightGCN(nn.Module):
         target_id_to_idx = data_config.get('target_id_to_idx', {})
         
         if pretrain_drug_emb is not None:
-            print("\n=== 嵌入初始化统计 ===")
+            # print("\n=== 嵌入范数统计 ===")
+            # 预训练嵌入的范数
+            pretrain_norms = torch.norm(pretrain_drug_emb, p=2, dim=1)
+            # print(f"预训练嵌入范数: mean={pretrain_norms.mean():.4f}, std={pretrain_norms.std():.4f}")
+            # Xavier初始化嵌入的范数
+            xavier_norms = torch.norm(self.user_embed, p=2, dim=1)
+            # print(f"Xavier初始化范数: mean={xavier_norms.mean():.4f}, std={xavier_norms.std():.4f}")
+            # 在更新预训练嵌入之前添加归一化
+            pretrain_drug_emb = F.normalize(pretrain_drug_emb, p=2, dim=1)
+            pretrain_target_emb = F.normalize(pretrain_target_emb, p=2, dim=1)
+            # # 将预训练嵌入的范数调整到与Xavier初始化相似的水平
+            scale_factor = xavier_norms.mean() / pretrain_norms.mean()
+            pretrain_drug_emb = pretrain_drug_emb * scale_factor
+            pretrain_target_emb = pretrain_target_emb * scale_factor
             
-            # 统计drug的预训练和随机初始化数量
-            pretrained_drug_count = len(drug_id_to_idx)
-            random_drug_count = self.n_users - pretrained_drug_count
-            print(f"\nDrug统计:")
-            print(f"预训练嵌入数量: {pretrained_drug_count}")
-            print(f"随机初始化数量: {random_drug_count}")
             
-            # 显示drug的前5个预训练样本
-            print("\nDrug预训练样本示例(前5个):")
-            for i, (drug_id, idx) in enumerate(drug_id_to_idx.items()):
-                if i >= 5: break
-                print(f"原始ID: {drug_id} -> 映射索引: {idx}")
+    
+            # print("\n嵌入初始化统计 =====")
+            # # 统计drug的预训练和随机初始化数量
+            # pretrained_drug_count = len(drug_id_to_idx)
+            # random_drug_count = self.n_users - pretrained_drug_count
+            # print(f"\nDrug统计:")
+            # print(f"预训练嵌入数量: {pretrained_drug_count}")
+            # print(f"随机初始化数量: {random_drug_count}")
             
-            # 显示drug的前5个随机初始化样本
-            print("\nDrug随机初始化样本示例(前5个):")
-            random_indices = set(range(self.n_users)) - set(drug_id_to_idx.values())
-            for i, idx in enumerate(list(random_indices)[:5]):
-                print(f"索引: {idx} (无原始ID映射)")
+            # # 显示drug的前5个预训练样本
+            # print("\nDrug预训练样本示例(前5个):")
+            # for i, (drug_id, idx) in enumerate(drug_id_to_idx.items()):
+            #     if i >= 5: break
+            #     print(f"原始ID: {drug_id} -> 映射索引: {idx}")
             
-            # 统计target的预训练和随机初始化数量
-            pretrained_target_count = len(target_id_to_idx)
-            random_target_count = self.n_items - pretrained_target_count
-            print(f"\nTarget统计:")
-            print(f"预训练嵌入数量: {pretrained_target_count}")
-            print(f"随机初始化数量: {random_target_count}")
+            # # 显示drug的前5个随机初始化样本
+            # print("\nDrug随机初始化样本示例(前5个):")
+            # random_indices = set(range(self.n_users)) - set(drug_id_to_idx.values())
+            # for i, idx in enumerate(list(random_indices)[:5]):
+            #     print(f"索引: {idx}")
             
-            # 显示target的前5个预训练样本
-            print("\nTarget预训练样本示例(前5个):")
-            for i, (target_id, idx) in enumerate(target_id_to_idx.items()):
-                if i >= 5: break
-                print(f"原始ID: {target_id} -> 映射索引: {idx}")
+            # # 统计target的预训练和随机初始化数量
+            # pretrained_target_count = len(target_id_to_idx)
+            # random_target_count = self.n_items - pretrained_target_count
+            # print(f"\nTarget统计:")
+            # print(f"预训练嵌入数量: {pretrained_target_count}")
+            # print(f"随机初始化数量: {random_target_count}")
             
-            # 显示target的前5个随机初始化样本
-            print("\nTarget随机初始化样本示例(前5个):")
-            random_indices = set(range(self.n_items)) - set(target_id_to_idx.values())
-            for i, idx in enumerate(list(random_indices)[:5]):
-                print(f"索引: {idx} (无原始ID映射)")
+            # # 显示target的前5个预训练样本
+            # print("\nTarget预训练样本示例(前5个):")
+            # for i, (target_id, idx) in enumerate(target_id_to_idx.items()):
+            #     if i >= 5: break
+            #     print(f"原始ID: {target_id} -> 映射索引: {idx}")
             
-            print("\n=== 开始更新预训练嵌入 ===")
+            # # 显示target的前5个随机初始化样本
+            # print("\nTarget随机初始化样本示例(前5个):")
+            # random_indices = set(range(self.n_items)) - set(target_id_to_idx.values())
+            # for i, idx in enumerate(list(random_indices)[:5]):
+            #     print(f"索引: {idx} (无原始ID映射)")
+            
+            
+            
+            ######### 原来的代码，需要的是0-6672的唯一ID-----------------------------------
+            # # 更新预训练嵌入
+            # for drug_id, idx in drug_id_to_idx.items():
+            #     if idx < self.n_users:
+            #         self.user_embed[idx] = pretrain_drug_emb[idx]
+            
+            # for target_id, idx in target_id_to_idx.items():
+            #     if idx < self.n_items:
+            #         self.item_embed[idx] = pretrain_target_emb[idx]
+            #########  新的代码，用原始txt和pt文件中的ID就可以------------------------------
+            
             # 更新预训练嵌入
             for drug_id, idx in drug_id_to_idx.items():
                 if idx < self.n_users:
-                    self.user_embed[idx] = pretrain_drug_emb[idx]
+                    # 使用enumerate后的位置来获取预训练嵌入
+                    pretrain_idx = list(drug_id_to_idx.keys()).index(drug_id)
+                    self.user_embed[idx] = pretrain_drug_emb[pretrain_idx]
             
             for target_id, idx in target_id_to_idx.items():
                 if idx < self.n_items:
-                    self.item_embed[idx] = pretrain_target_emb[idx]
+                    # 使用enumerate后的位置来获取预训练嵌入
+                    pretrain_idx = list(target_id_to_idx.keys()).index(target_id)
+                    self.item_embed[idx] = pretrain_target_emb[pretrain_idx]
+        
+        # # 在sparse_norm_adj转换之前添加
+        # print("\n=== 图结构统计 ===")
+        # print(f"总节点数: {self.adj_mat.shape[0]}")
+        # print(f"有边的节点数: {len(np.unique(self.adj_mat.nonzero()[0]))}")
+        # print(f"总边数: {self.adj_mat.nnz // 2}")  
+    
         
         self.sparse_norm_adj = self._convert_sp_mat_to_sp_tensor(self.adj_mat).to(self.device)
 
